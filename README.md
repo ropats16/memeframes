@@ -5,11 +5,11 @@ MemeFrames are permaweb pages with a DAO _inside_. Once you launch a MemeFrame, 
 The MemeFrame's DAO also retains the treasury of $CRED tokens used in minting. Token holders can vote to use (and grow) these however they like.
 
 ## Requirements
+
 - Node version 20.
 - aos - `npm i -g https://get_ao.g8way.io`
 - A sense of humor.
-- $CRED to burn. They will probably all go to zero.
-
+- $CREDSPOOF to burn. They will probably all go to zero.
 
 ## Deploying
 
@@ -17,7 +17,7 @@ To deploy your MemeFrame clone this repo and run the following:
 
 ```sh
 aos --data src/index.html \
---tag-name MemeFrame-Name --tag-value aoWifHat \
+--tag-name MemeFrame-Name --tag-value ArweaveIndiaMemeFrame \
 --tag-name MemeFrame --tag-value MemeFrame \
 --tag-name FrameID --tag-value {default html tx id}  \
 --tag-name Content-Type --tag-value text/html
@@ -44,7 +44,7 @@ MEMEFRAME = "{Your MemeFrame Address}"
 First the users need CRED and should transfer the CRED to your MemeFrams
 
 ```lua
-Send({Target = CRED, Action = "Transfer", Quantity = "1000", Recipient = MEMEFRAME})
+Send({Target = CREDSPOOF, Action = "Transfer", Quantity = "1000", Recipient = MEMEFRAME})
 ```
 
 Stake
@@ -56,7 +56,7 @@ Send({Target = MEMEFRAME, Action = "Stake", Quantity = "1000", UnstakeDelay = "1
 Vote to change the FRAME
 
 ```lua
-Send({ Target = MEMEFRAME, Action = "Vote", Side = "yay", TXID="..." })
+Send({ Target = MEMEFRAME, Action = "Vote", Side = "yay", VoteID="..." })
 ```
 
 ## Need Help
