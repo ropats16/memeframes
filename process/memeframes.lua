@@ -1,113 +1,125 @@
 --[[
--- MEMEFRAMES 
--- Version: 0.3
+  MEMEFRAMES Version: 0.3
 
--- NOTE: Requires token blueprint and staking blueprint to be loaded in order to run.
+  This Lua script is part of a system designed for creating and managing a community-driven meme frame display, 
+  leveraging Arweave's blockchain for decentralized storage. Users can mint tokens, stake them to participate in voting, 
+  and submit their votes for their favorite memes to be displayed.
 
--- Install 
+  Dependencies:
+  - Token blueprint: Handles token-related actions such as minting and transferring.
+  - Staking blueprint: Manages staking actions, necessary for enabling voting rights.
 
-> .load-blueprint token
-> .load-blueprint staking
+  Installation Instructions:
+  1. Load the token and staking blueprints with the following commands:
+     > .load-blueprint token
+     > .load-blueprint staking
+  2. Load this script to initialize the MEMEFRAMES process:
+     > .load process/memeframes.lua
 
-> .load process/memeframes.lua
-
-Get-Info - Manpage
-Get-Votes - return
-
+  Features:
+  - Get-Info: Displays a manual page for user interaction.
+  - Get-Votes: Returns the current voting results.
 ]]
+
+-- Required Lua modules and initial setup.
 local json = require('json')
-Votes = Votes or {}
--- $CRED
-BuyToken = "Sa0iBLPNyJQrwpTTG-tWLQU-1QeUAJA73DdxGGiKoJc"
-MaxMint = 1000000
-Minted = Minted or 0
--- INITIAL FRAME ID
+Votes = Votes or {} -- Initialize Votes if not already set.
+
+-- Configuration for purchasing and minting tokens.
+BuyToken = "GwYlfSvxTuf85y3aF88wMvv9ZmcKuaINmXxSiMh_-l0"
+MaxMint = 1000000 -- Maximum amount of tokens that can be minted.
+Minted = Minted or 0 -- Tracks the amount of tokens already minted.
+
+-- Default frame ID and meme name initialization.
 FrameID = FrameID or Inbox[1].FrameID 
--- INITIAL NAME
 MEMEFRAME_NAME = MEMEFRAME_NAME or Inbox[1]["MemeFrame-Name"]
-VoteLength = 30 * 24
 
-function Man (name) 
+-- Configuration for voting: the block height limit for a vote's duration.
+VoteLength = 1 -- Set to 1 for demonstration, adjust based on your block time for longer votes.
+
+-- Generates a manual page with instructions for interaction.
+function Man(name) 
   return string.format([[
-  v1
+  # Arweave India MEME: %s
 
-  # MemeFrames: %s
+  Join the Arweave India MemeFrame community. Mint MemeFrame Tokens using $CREDSPOOF, then stake them for voting on the webpage to display
+  on the community's MemeFrame page.
 
-  Join the MemeFrame community. Mint MemeFrame Tokens using $CRED, then Stake them for voting on the Webpage to show
-    on the MemeFrame page.
+  ## How to Interact
 
-  ## Meme
-
-  `MEME = "%s"`
+  - Mint tokens to get started.
+  - Stake tokens to gain voting rights.
+  - Vote for your favorite memes to be displayed.
+  - Retrieve current vote standings.
 
   ## Mint
 
   ```
-  Send({Target = CRED, Action = "Transfer", Quantity = "1000", Recipient = MEME  })
+  Send({Target = CREDSPOOF, Action = "Transfer", Quantity = "1000", Recipient = MEMEFRAME  })
   ```
 
   ## Stake
 
   ```
-  Send({Target = MEME, Action = "Stake", Quantity = "1000", UnstakeDelay = "1000"})
+  Send({Target = MEMEFRAME, Action = "Stake", Quantity = "1000", UnstakeDelay = "1000"})
   ```
 
   ## Vote
 
   ```
-  Send({Target = MEME, Action = "Vote", Side = "yay", VoteID = "{TXID}" })
+  Send({Target = MEMEFRAME, Action = "Vote", Side = "yay", VoteID = "{TXID}" })
   ```
 
   ## Get-Votes
 
   ```
-  Send({Target = MEME, Action = "Get-Votes"})
+  Send({Target = MEMEFRAME, Action = "Get-Votes"})
   ```
+
 
 ]], name, ao.id)
 end
 
+-- Broadcasts a message to a list of participant IDs.
 local function announce(msg, pids)
-  Utils.map(function (pid) 
-    Send({Target = pid, Data = msg })
-  end, pids)
+Utils.map(function (pid) 
+  Send({Target = pid, Data = msg })
+end, pids)
 end
 
-
--- GetVotes
+-- Handler to retrieve and send current vote standings.
 Handlers.prepend("Get-Votes", function (m) 
-  return m.Action == "Get-Votes"
+return m.Action == "Get-Votes"
 end, function (m)
-  Send({
-    Target = m.From,
-    Data = require('json').encode(
+Send({
+  Target = m.From,
+  Data = require('json').encode(
       Utils.map(function (k) return { tx = k, yay = Votes[k].yay, nay = Votes[k].nay, deadline = Votes[k].deadline} end ,
        Utils.keys(Votes))
-    ) 
-  }) 
-  print("Sent Votes to caller")
-end
-)
-
--- GetInfo
-Handlers.prepend("Get-Info", function (m) return m.Action == "Get-Info" end, function (m)
-  Send({
-    Target = m.From,
-    Data = Man(Name)
-  })
-  print('Send Info to ' .. m.From)
+    )  
+}) 
+print("Sent Votes to caller")
 end)
 
+-- Provides information about how to interact with the MemeFrame system.
+Handlers.prepend("Get-Info", function (m) return m.Action == "Get-Info" end, function (m)
+Send({
+  Target = m.From,
+  Data = Man(MEMEFRAME_NAME)
+})
+print('Sent Info to ' .. m.From)
+end)
 
--- MINT
+-- Handles the minting process for tokens upon receiving a credit notice.
 Handlers.prepend(
-  "Mint",
-  function(m)
-    return m.Action == "Credit-Notice" and m.From == BuyToken
-  end,
-  function(m)
-    local requestedAmount = tonumber(m.Quantity)
-    local actualAmount = requestedAmount
+"Mint",
+function(m)
+  return m.Action == "Credit-Notice" and m.From == BuyToken
+end,
+function(m)
+  local requestedAmount = tonumber(m.Quantity)
+  local actualAmount = requestedAmount
+  -- Checks if the mint request exceeds the max mint limit.
     -- if over limit refund difference
     if (Minted + requestedAmount) > MaxMint then
       -- if not enough tokens available send a refund...
@@ -131,7 +143,8 @@ Handlers.prepend(
   end
 )
 
--- GET-FRAME
+-- GET-FRAME Handler: Sends the current Frame ID to the requester.
+-- This function allows users to query the current frame being displayed or voted on.
 Handlers.prepend(
   "Get-Frame",
   Handlers.utils.hasMatchingTag("Action", "Get-Frame"),
@@ -145,6 +158,8 @@ Handlers.prepend(
   end
 )
 
+-- Utility function to allow message processing to continue under certain conditions.
+-- This function is used to chain handlers and manage the flow of actions.
 local function continue(fn) 
   return function (msg) 
     local result = fn(msg)
@@ -155,7 +170,8 @@ local function continue(fn)
   end
 end
 
--- Vote for Frame or Command
+-- Vote Handler: Manages the voting process, allowing users to vote on proposals.
+-- Validates if the user is a staker and has enough staked tokens to vote. Updates the vote count for each proposal.
 Handlers.prepend("vote", 
   continue(Handlers.utils.hasMatchingTag("Action", "Vote")),
   function (m)
@@ -187,7 +203,8 @@ Handlers.prepend("vote",
   end
 )
 
--- Finalization Handler
+-- Finalization Handler: Processes the outcome of votes after the deadline.
+-- This handler checks the voting results for each proposal and updates the frame or executes commands based on the votes.
 Handlers.after("vote").add("VoteFinalize",
 function (msg) 
   return "continue"
@@ -197,9 +214,13 @@ function(msg)
   
   -- Process voting
   for id, voteInfo in pairs(Votes) do
+      print("Processing Vote: " .. id)
       if currentHeight >= voteInfo.deadline then
+        print("Vote deadline passed..")
           if voteInfo.yay > voteInfo.nay then
-              if not voteInfo.command then
+            print("More yays received..")
+              if voteInfo.command == "" then
+                -- Updates the Frame ID to the winning proposal.
                 FrameID = id
               else
                 -- TODO: Test that command execution runs with the right scope?
@@ -211,9 +232,10 @@ function(msg)
                 end
               end
           end
+          -- Announces the vote's completion.
           announce(string.format("Vote %s Complete", id), Utils.keys(Stakers))
           -- Clear the vote record after processing
-          Votes[id] = nil
+          -- Votes[id] = nil
       end
   end
 end
