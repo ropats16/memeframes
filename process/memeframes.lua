@@ -143,20 +143,6 @@ function(m)
   end
 )
 
--- GET-FRAME Handler: Sends the current Frame ID to the requester.
--- This function allows users to query the current frame being displayed or voted on.
-Handlers.prepend(
-  "Get-Frame",
-  Handlers.utils.hasMatchingTag("Action", "Get-Frame"),
-  function(m)
-    Send({
-      Target = m.From,
-      Action = "Frame-Response",
-      Data = FrameID
-    })
-    print("Sent FrameID: " .. FrameID)
-  end
-)
 
 -- Utility function to allow message processing to continue under certain conditions.
 -- This function is used to chain handlers and manage the flow of actions.
@@ -239,4 +225,19 @@ function(msg)
       end
   end
 end
+)
+
+-- GET-FRAME Handler: Sends the current Frame ID to the requester.
+-- This function allows users to query the current frame being displayed or voted on.
+Handlers.prepend(
+  "Get-Frame",
+  Handlers.utils.hasMatchingTag("Action", "Get-Frame"),
+  function(m)
+    Send({
+      Target = m.From,
+      Action = "Frame-Response",
+      Data = FrameID
+    })
+    print("Sent FrameID: " .. FrameID)
+  end
 )
